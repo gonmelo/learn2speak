@@ -19,7 +19,9 @@ class LanguageAgent(Agent):
     """ An agent that learns a communinty's vocabulary """
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.vocabulary = {}
+        self.meanings = []
+        self.meaning2word = {}
+        self.word2meaning = {}
         self.heading = [1,0]
         self.communication_success = 0
 
@@ -30,15 +32,71 @@ class LanguageAgent(Agent):
             include_center=False)
         new_position = self.random.choice(possible_steps)
         self.heading = [new_position[0] - self.pos[0], new_position[1] - self.pos[1]]
-        print(self.heading)
         self.model.grid.move_agent(self, new_position)
 
     def speak(self):
-        # TODO: Implement the language game between the agents
         # Speaks randomly to another agent on the same cell
+        anticipated_meaning = None
         cellmates = self.model.grid.get_cell_list_contents([self.pos])
+
+        # If other agents on the same cell
         if len(cellmates) > 1:
-            other = self.random.choice(cellmates)
+            hearer = self.random.choice(cellmates)
+            meaning = self.random.choice(self.model.schedule.agents).unique_id
+
+            # If the speaker is not acquainted with the meaning
+            if meaning not in self.meanings:
+                print("New meaning added")
+                self.meanings.append(meaning)
+                return 0.0
+
+            # If the hearer is not acquainted with the meaning
+            if meaning not in hearer.meanings:
+                print("New meaning added")
+                hearer.meanings.append(meaning)
+                return 0.0
+
+            # If the speaker has a word for the meaning
+            if meaning in self.meaning2word:
+                word = self.meaning2word[meaning]
+
+                # If the hearer has a word for the meaning
+                if word in hearer.word2meaning:
+                    # If the hearer has no anticipated meaning
+                    if not anticipated_meaning:
+                        return 1.0
+                    # If anticipated meaning different from hearer meaning
+                    if (anticipated_meaning
+                        and anticipated_meaning != hearer.word2meaning[word]):
+                        hearer.word2meaning[word] = anticipated_meaning
+                        hearer.meaning2word[anticipated_meaning] = word
+                        hearer.meaning2word.pop(meaning, None)
+                        return None
+                    # If anticipated meaning same as hearer meaning
+                    if (anticipated_meaning
+                        and anticipated_meaning == hearer.word2meaning[word]):
+                        return 1.0
+
+                # If the hearer has no word for the meaning
+                else:
+                    # If anticipated meanig same as speaker meaning
+                    if (anticipated_meaning
+                        and word not in hearer.word2meaning
+                        and anticipated_meaning not in hearer.meaning2word):
+                        hearer.word2meaning[word] = anticipated_meaning
+                        hearer.meaning2word[anticipated_meaning] = word
+                    return 0.0
+
+            # If the speaker has no word for the meaning
+            # TODO: Add PROBABILISTIC creation of words
+            if meaning not in self.meaning2word:
+                new_word = self.create_word()
+                self.meaning2word[meaning] = new_word
+                self.word2meaning[new_word] = meaning
+
+    # TODO: Complete function that creates new words
+    def create_word(self):
+        return "TEST"
 
     def step(self):
         self.move()
@@ -60,11 +118,10 @@ class LanguageModel(Model):
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
             self.grid.place_agent(a, (x, y))
-        #print('lol')
-        # TODO: Impelement data collector and decide measures
+        # TODO: Implement data collector and decide measures
         self.datacollector = DataCollector(
            model_reporters={"Graph": compute_graph},
-           agent_reporters={"Vocabulary": "vocabulary"}
+           agent_reporters={"Meanings": "meanings"}
         )
 
     def step(self):
