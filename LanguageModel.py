@@ -3,14 +3,25 @@ from mesa.space import MultiGrid
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
+import random
+
+
+def compute_graph(model):
+    agent_success = 0
+    for agent in model.schedule.agents:
+        agent_success += agent.communication_success
+        # agent_success += random.random()
+    N = model.num_agents
+    return (agent_success / N)
 
 
 class LanguageAgent(Agent):
     """ An agent that learns a communinty's vocabulary """
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
-        self.vocabulary = []
+        self.vocabulary = {}
         self.heading = [1,0]
+        self.communication_success = 0
 
     def move(self):
         possible_steps = self.model.grid.get_neighborhood(
@@ -49,15 +60,15 @@ class LanguageModel(Model):
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
             self.grid.place_agent(a, (x, y))
-
+        #print('lol')
         # TODO: Impelement data collector and decide measures
-        # self.datacollector = DataCollector(
-        #    model_reporters={"Gini": compute_gini},
-        #    agent_reporters={"Wealth": "wealth"}
-        #)
+        self.datacollector = DataCollector(
+           model_reporters={"Graph": compute_graph},
+           agent_reporters={"Vocabulary": "vocabulary"}
+        )
 
     def step(self):
-        # self.datacollector.collect(self)
+        self.datacollector.collect(self)
         self.schedule.step()
 
 # TODO: Add batch running to find overall patterns
