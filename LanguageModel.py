@@ -10,6 +10,7 @@ class LanguageAgent(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.vocabulary = []
+        self.heading = [1,0]
 
     def move(self):
         possible_steps = self.model.grid.get_neighborhood(
@@ -17,6 +18,8 @@ class LanguageAgent(Agent):
             moore=False, # implements Von Neumann neighborhood
             include_center=False)
         new_position = self.random.choice(possible_steps)
+        self.heading = [new_position[0] - self.pos[0], new_position[1] - self.pos[1]]
+        print(self.heading)
         self.model.grid.move_agent(self, new_position)
 
     def speak(self):
