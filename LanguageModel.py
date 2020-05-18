@@ -4,7 +4,10 @@ from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
 import random
+import string
 
+VOWELS = list("AEIOU")
+CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
 
 def compute_graph(model):
     agent_success = 0
@@ -46,13 +49,13 @@ class LanguageAgent(Agent):
 
             # If the speaker is not acquainted with the meaning
             if meaning not in self.meanings:
-                print("New meaning added")
+                print("New meaning added to speaker")
                 self.meanings.append(meaning)
                 return 0.0
 
             # If the hearer is not acquainted with the meaning
             if meaning not in hearer.meanings:
-                print("New meaning added")
+                print("New meaning added to hearer")
                 hearer.meanings.append(meaning)
                 return 0.0
 
@@ -88,15 +91,17 @@ class LanguageAgent(Agent):
                     return 0.0
 
             # If the speaker has no word for the meaning
-            # TODO: Add PROBABILISTIC creation of words
             if meaning not in self.meaning2word:
-                new_word = self.create_word()
-                self.meaning2word[meaning] = new_word
-                self.word2meaning[new_word] = meaning
+                if self.random.randrange(0, 101) <= 5:  # Probability of 5%
+                    new_word = self.create_word()
+                    print("New word:", new_word)
+                    self.meaning2word[meaning] = new_word
+                    self.word2meaning[new_word] = meaning
+                return None
 
     # TODO: Complete function that creates new words
     def create_word(self):
-        return "TEST"
+        return self.random.choice(CONSONANTS) + self.random.choice(VOWELS)
 
     def step(self):
         self.move()
