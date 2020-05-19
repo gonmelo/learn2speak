@@ -3,11 +3,25 @@ from mesa.space import MultiGrid
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
+from collections import namedtuple
 import random
 import string
+import math
+
 
 VOWELS = list("AEIOU")
 CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
+
+R = 5 # word meaning pair change rate
+ALPHA = 0.49 # sigmoid variable
+BETA = 80 # sigmoid variable
+Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
+
+##### DEBUG ##############
+GlobalStatus = {}
+for e in range(5):
+    GlobalStatus[e] = {}
+#########################
 
 def compute_graph(model):
     agent_success = 0
@@ -19,14 +33,56 @@ def compute_graph(model):
 
 
 class LanguageAgent(Agent):
+    dialog_count = 0
     """ An agent that learns a communinty's vocabulary """
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.meanings = []
         self.meaning2word = {}
         self.word2meaning = {}
+        self.wordsuccess = {}
         self.heading = [1,0]
         self.communication_success = 0
+
+    def create_link(self, word, meaning):
+        print(str(self.unique_id) + " learned " + str(word) + " for " + str(meaning))
+        self.meaning2word[meaning] = word
+        self.word2meaning[word] = meaning
+        self.wordsuccess[word] = []
+
+        if meaning not in GlobalStatus:
+            GlobalStatus[meaning] = {}
+
+        ################################ DEBUG ##############################
+        if word not in GlobalStatus[meaning]:
+            GlobalStatus[meaning][word] = [self.unique_id]
+        else:
+            GlobalStatus[meaning][word].append(self.unique_id)
+        ####################################################################
+
+
+    def delete_link(self, word):
+        tmp = self.word2meaning[word]
+        print(str(self.unique_id) + " forgot " + str(word) + " for " + str(tmp))
+        del self.word2meaning[word]
+        del self.meaning2word[tmp]
+        del self.wordsuccess[word]
+
+        ################################ DEBUG ##############################
+        if len(GlobalStatus[tmp][word]) == 1:
+            del GlobalStatus[tmp][word]
+        else:
+            GlobalStatus[tmp][word].remove(self.unique_id)
+        ####################################################################
+
+    def showGlobalStatus(self): # CHECK: DEBUG FUNCTION, SHOWS EVOLUTION OF VOCAB IN A SIMILAR WAY TO THE PAPER
+        print("----------------")
+        for e in GlobalStatus:
+            text = str(e) + ": "
+            for word in GlobalStatus[e]:
+                text += str(word) + ":" + str(GlobalStatus[e][word]) + " "
+            print(text)
+        print("----------------")
 
     def move(self):
         possible_steps = self.model.grid.get_neighborhood(
@@ -45,19 +101,34 @@ class LanguageAgent(Agent):
         # If other agents on the same cell
         if len(cellmates) > 1:
             hearer = self.random.choice(cellmates)
+
+            while (hearer == self): # agents should not talk to themselves (CHECK: COM QUE ENTAO TINHAMOS AGENTES ESQUIZOFRENICOS)
+                hearer = self.random.choice(cellmates)
+
             meaning = self.random.choice(self.model.schedule.agents).unique_id
+
+            ############################## DEBUG ########################
+            self.dialog_count += 1
+            if self.dialog_count%10 == 0: # show global status every 10 dialogs
+                self.showGlobalStatus()
+            #############################################################
 
             # If the speaker is not acquainted with the meaning
             if meaning not in self.meanings:
                 print("New meaning added to speaker")
                 self.meanings.append(meaning)
-                return 0.0
+                return Conversation(word=None,meaning=None, success=0.0)
 
             # If the hearer is not acquainted with the meaning
             if meaning not in hearer.meanings:
                 print("New meaning added to hearer")
                 hearer.meanings.append(meaning)
-                return 0.0
+                return Conversation(word=None, meaning=None, success=0.0)
+
+            if self.random.randrange(0,2) == 1: # 50% chance of having an anticipated meaning
+                print("    " + str(self.unique_id) + " points at " + str(meaning))
+                anticipated_meaning = meaning
+
 
             # If the speaker has a word for the meaning
             if meaning in self.meaning2word:
@@ -67,37 +138,65 @@ class LanguageAgent(Agent):
                 if word in hearer.word2meaning:
                     # If the hearer has no anticipated meaning
                     if not anticipated_meaning:
-                        return 1.0
+                        return Conversation(word=word, meaning=meaning, success=1.0)
                     # If anticipated meaning different from hearer meaning
                     if (anticipated_meaning
                         and anticipated_meaning != hearer.word2meaning[word]):
-                        hearer.word2meaning[word] = anticipated_meaning
-                        hearer.meaning2word[anticipated_meaning] = word
-                        hearer.meaning2word.pop(meaning, None)
+                        hearer.create_link(word, anticipated_meaning)
                         return None
                     # If anticipated meaning same as hearer meaning
                     if (anticipated_meaning
                         and anticipated_meaning == hearer.word2meaning[word]):
-                        return 1.0
+                        return Conversation(word=word, meaning=meaning, success=1.0)
 
                 # If the hearer has no word for the meaning
                 else:
-                    # If anticipated meanig same as speaker meaning
+                    # If anticipated meaning same as speaker meaning
                     if (anticipated_meaning
                         and word not in hearer.word2meaning
                         and anticipated_meaning not in hearer.meaning2word):
-                        hearer.word2meaning[word] = anticipated_meaning
-                        hearer.meaning2word[anticipated_meaning] = word
-                    return 0.0
+                        hearer.create_link(word, anticipated_meaning)
+                    return Conversation(word=word, meaning=meaning, success=0.0)
 
             # If the speaker has no word for the meaning
             if meaning not in self.meaning2word:
-                if self.random.randrange(0, 101) <= 5:  # Probability of 5%
+                return Conversation(word=None, meaning=meaning, success=0.0)
+
+    def do_change(self, success_array):
+        avg = 0.0
+        for e in success_array:
+            avg += e
+        avg /= len(success_array)
+
+        probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(BETA*(avg - ALPHA))))) # (CHECK: THIS SIGMOID IS FROM 1995 IT SUCKS)
+
+        if random.random() < probability: # (CHECK: RANDOM FUNCTION SHOUlD BE CHANGED?)
+            return True
+        else:
+            return False
+
+    def change_wordMeaning(self, conversation):
+        if conversation == None: return
+
+        # If no word was used in the last conversation
+        if conversation.word == None and conversation.meaning != None:
+            if self.random.randrange(0, 101) <= 5:  # Probability of 5% (CHECK: IS IT THO?)
+                new_word = self.create_word()
+                while new_word in self.wordsuccess: # cannot have one word with multiple meanings
                     new_word = self.create_word()
-                    print("New word:", new_word)
-                    self.meaning2word[meaning] = new_word
-                    self.word2meaning[new_word] = meaning
-                return None
+                print("New word:", new_word)
+                self.create_link(new_word, conversation.meaning)
+
+        # If a word was used in the last conversation
+        elif conversation.word != None:
+            self.wordsuccess[conversation.word].append(conversation.success)
+
+            # if the word was used R times, there is a chance it will be dropped
+            if len(self.wordsuccess[conversation.word]) >= R:
+                if self.do_change(self.wordsuccess[conversation.word]):
+                    self.delete_link(conversation.word) # forget word
+                else:
+                    self.wordsuccess[conversation.word] = [] # reset success (CHECK: MAY NOT BE SUPPOSE TO DO THIS)
 
     # TODO: Complete function that creates new words
     def create_word(self):
@@ -105,7 +204,10 @@ class LanguageAgent(Agent):
 
     def step(self):
         self.move()
-        self.speak()
+        conversation = self.speak()
+        
+        self.change_wordMeaning(conversation)
+
 
 class LanguageModel(Model):
     """ A model with variable number of agents who communicate. """
