@@ -24,6 +24,6 @@ chart = ChartModule([{"Label": "Graph",
 server = ModularServer(LanguageModel,
                        [grid, chart],
                        "Language and Self-Organization",
-                       {"N":5, "width":10, "height":10})
+                       {"N":5, "width":5, "height":5})
 server.port = 8521 # The default
 server.launch()

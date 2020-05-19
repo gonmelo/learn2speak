@@ -102,7 +102,7 @@ class LanguageAgent(Agent):
         if len(cellmates) > 1:
             hearer = self.random.choice(cellmates)
 
-            while (hearer == self): # agents should not talk to themselves (CHECK: COM QUE ENTAO TINHAMOS AGENTES ESQUIZOFRENICOS)
+            while (hearer == self): # agents should not talk to themselves
                 hearer = self.random.choice(cellmates)
 
             meaning = self.random.choice(self.model.schedule.agents).unique_id
@@ -110,6 +110,7 @@ class LanguageAgent(Agent):
             ############################## DEBUG ########################
             self.dialog_count += 1
             if self.dialog_count%10 == 0: # show global status every 10 dialogs
+                print("Dialog ", self.dialog_count)
                 self.showGlobalStatus()
             #############################################################
 
@@ -137,22 +138,22 @@ class LanguageAgent(Agent):
                 # If the hearer has a word for the meaning
                 if word in hearer.word2meaning:
                     # If the hearer has no anticipated meaning
-                    if not anticipated_meaning:
+                    if anticipated_meaning == None:
                         return Conversation(word=word, meaning=meaning, success=1.0)
                     # If anticipated meaning different from hearer meaning
-                    if (anticipated_meaning
+                    if (anticipated_meaning != None
                         and anticipated_meaning != hearer.word2meaning[word]):
                         hearer.create_link(word, anticipated_meaning)
                         return None
                     # If anticipated meaning same as hearer meaning
-                    if (anticipated_meaning
+                    if (anticipated_meaning != None
                         and anticipated_meaning == hearer.word2meaning[word]):
                         return Conversation(word=word, meaning=meaning, success=1.0)
 
                 # If the hearer has no word for the meaning
                 else:
                     # If anticipated meaning same as speaker meaning
-                    if (anticipated_meaning
+                    if (anticipated_meaning != None
                         and word not in hearer.word2meaning
                         and anticipated_meaning not in hearer.meaning2word):
                         hearer.create_link(word, anticipated_meaning)
@@ -168,9 +169,14 @@ class LanguageAgent(Agent):
             avg += e
         avg /= len(success_array)
 
-        probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(BETA*(avg - ALPHA))))) # (CHECK: THIS SIGMOID IS FROM 1995 IT SUCKS)
+        if avg == 0:
+            return True
+        if avg == 1:
+            return False
 
-        if random.random() < probability: # (CHECK: RANDOM FUNCTION SHOUlD BE CHANGED?)
+        probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(BETA*(avg - ALPHA)))))
+
+        if self.random.random() < probability:
             return True
         else:
             return False
@@ -180,7 +186,7 @@ class LanguageAgent(Agent):
 
         # If no word was used in the last conversation
         if conversation.word == None and conversation.meaning != None:
-            if self.random.randrange(0, 101) <= 5:  # Probability of 5% (CHECK: IS IT THO?)
+            if self.random.randrange(0, 100) <= 5:  # Probability of 5%
                 new_word = self.create_word()
                 while new_word in self.wordsuccess: # cannot have one word with multiple meanings
                     new_word = self.create_word()
@@ -196,7 +202,7 @@ class LanguageAgent(Agent):
                 if self.do_change(self.wordsuccess[conversation.word]):
                     self.delete_link(conversation.word) # forget word
                 else:
-                    self.wordsuccess[conversation.word] = [] # reset success (CHECK: MAY NOT BE SUPPOSE TO DO THIS)
+                    self.wordsuccess[conversation.word] = [] # reset success
 
     # TODO: Complete function that creates new words
     def create_word(self):
@@ -205,7 +211,7 @@ class LanguageAgent(Agent):
     def step(self):
         self.move()
         conversation = self.speak()
-        
+
         self.change_wordMeaning(conversation)
 
 
