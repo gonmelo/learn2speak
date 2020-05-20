@@ -1,5 +1,6 @@
-from LanguageModel import *
+from model import *
 from mesa.visualization.modules import CanvasGrid
+from mesa.visualization.UserParam import UserSettableParameter
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 
@@ -18,9 +19,12 @@ grid = CanvasGrid(agent_portrayal, 5, 5, 500, 500)
 chart = ChartModule([{"Label": "Average Communicative Success",
                       "Color": "Black"}],
                     data_collector_name='datacollector')
+
+slider_option = UserSettableParameter('slider', 'Number of agents', value=5, min_value=2, max_value=10, step=1)
+
 server = ModularServer(LanguageModel,
                        [grid, chart],
                        "Language and Self-Organization",
-                       {"N":5, "width":5, "height":5})
+                       {"N": slider_option, "width":5, "height":5})
 server.port = 8521 # The default
-server.launch()
+# server.launch()

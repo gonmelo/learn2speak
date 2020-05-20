@@ -195,6 +195,7 @@ class LanguageAgent(Agent):
         # TODO: Refactor this out of the step method
         if conversation:
             self.number_of_dialogs += 1
+            print(self.number_of_dialogs)
             self.comm_success = self.comm_success + (1/self.number_of_dialogs) * (conversation.success - self.comm_success)
         self.change_wordMeaning(conversation)
 
@@ -230,8 +231,8 @@ class LanguageModel(Model):
         # TODO: Refactor the conditional out of this step method.
         self.datacollector.collect(self)
         total_dialogs = sum([a.number_of_dialogs for a in self.schedule.agents])
-        # show global vocabulary every 10 dialogs
-        if total_dialogs % 10 == 0:
+        # show global vocabulary every 50 iterations
+        if self.schedule.time % 50 == 0:
             print("Dialog ", total_dialogs)
             self.showVocabulary()
         self.schedule.step()
