@@ -13,17 +13,11 @@ import math
 
 VOWELS = list("AEIOU")
 CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
-
 R = 5 # word meaning pair change rate
 ALPHA = 0.49 # sigmoid variable
 BETA = 80 # sigmoid variable
-Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
 
-##### DEBUG ##############
-GlobalStatus = {}
-for e in range(5):
-    GlobalStatus[e] = {}
-#########################
+Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
 
 def compute_graph(model):
     avg_success = np.mean([a.comm_success for a in model.schedule.agents])
@@ -51,15 +45,15 @@ class LanguageAgent(Agent):
         self.word2meaning[word] = meaning
         self.wordsuccess[word] = []
 
-        if meaning not in GlobalStatus:
-            GlobalStatus[meaning] = {}
+        if meaning not in self.model.vocabulary:
+            self.model.vocabulary[meaning] = {}
 
-        ################################ DEBUG ##############################
-        if word not in GlobalStatus[meaning]:
-            GlobalStatus[meaning][word] = [self.unique_id]
+        # If word not in vocabulary, add it
+        if word not in self.model.vocabulary[meaning]:
+            self.model.vocabulary[meaning][word] = [self.unique_id]
+        # Else append this agent to its users
         else:
-            GlobalStatus[meaning][word].append(self.unique_id)
-        ####################################################################
+            self.model.vocabulary[meaning][word].append(self.unique_id)
 
 
     def delete_link(self, word):
@@ -70,21 +64,12 @@ class LanguageAgent(Agent):
         del self.meaning2word[meaning]
         del self.wordsuccess[word]
 
-        ################################ DEBUG ##############################
-        if len(GlobalStatus[meaning][word]) == 1:
-            del GlobalStatus[meaning][word]
+        # If the agent was the only one using the word, delete the word
+        if len(self.model.vocabulary[meaning][word]) == 1:
+            del self.model.vocabulary[meaning][word]
+        # Else simply remove the agent
         else:
-            GlobalStatus[meaning][word].remove(self.unique_id)
-        ####################################################################
-
-    def showGlobalStatus(self): # CHECK: DEBUG FUNCTION, SHOWS EVOLUTION OF VOCAB IN A SIMILAR WAY TO THE PAPER
-        print("----------------")
-        for e in GlobalStatus:
-            text = str(e) + ": "
-            for word in GlobalStatus[e]:
-                text += str(word) + ":" + str(GlobalStatus[e][word]) + " "
-            print(text)
-        print("----------------")
+            self.model.vocabulary[meaning][word].remove(self.unique_id)
 
     def move(self):
         """ Implements the agents' movement """
@@ -110,13 +95,6 @@ class LanguageAgent(Agent):
                 hearer = self.random.choice(cellmates)
 
             meaning = self.random.choice(self.model.schedule.agents).unique_id
-
-            ############################## DEBUG ########################
-            self.dialog_count += 1
-            if self.dialog_count%10 == 0: # show global status every 10 dialogs
-                print("Dialog ", self.dialog_count)
-                self.showGlobalStatus()
-            #############################################################
 
             # If the speaker is not acquainted with the meaning
             if meaning not in self.meanings:
@@ -228,6 +206,11 @@ class LanguageModel(Model):
         self.grid = MultiGrid(width, height, False) # Last arg, if True makes grid toroidal
         self.schedule = RandomActivation(self)  # At each step, agents move in random order
         self.running = True
+        self.vocabulary = {}
+
+        # Initialize a vocabulary. For each meaning it will collect the words used by the agents
+        for e in range(N):
+            self.vocabulary[e] = {}
 
         # Create agents
         for i in range(self.num_agents):
@@ -244,7 +227,22 @@ class LanguageModel(Model):
         )
 
     def step(self):
+        # TODO: Refactor the conditional out of this step method.
         self.datacollector.collect(self)
+        total_dialogs = sum([a.number_of_dialogs for a in self.schedule.agents])
+        # show global vocabulary every 10 dialogs
+        if total_dialogs % 10 == 0:
+            print("Dialog ", total_dialogs)
+            self.showVocabulary()
         self.schedule.step()
+
+    def showVocabulary(self):
+        print("----------------")
+        for e in self.vocabulary:
+            text = str(e) + ": "
+            for word in self.vocabulary[e]:
+                text += str(word) + ":" + str(self.vocabulary[e][word]) + " "
+            print(text)
+        print("----------------")
 
 # TODO: Add batch running to find overall patterns
