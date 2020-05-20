@@ -14,13 +14,10 @@ def agent_portrayal(agent):
                  "heading_y": agent.heading[1]}
     return portrayal
 
-grid = CanvasGrid(agent_portrayal, 10, 10, 500, 500)
-# TODO: Add chart module to see metrics' evolution
-
-chart = ChartModule([{"Label": "Graph",
+grid = CanvasGrid(agent_portrayal, 5, 5, 500, 500)
+chart = ChartModule([{"Label": "Average Communicative Success",
                       "Color": "Black"}],
                     data_collector_name='datacollector')
-
 server = ModularServer(LanguageModel,
                        [grid, chart],
                        "Language and Self-Organization",

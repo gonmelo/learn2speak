@@ -26,11 +26,9 @@ for e in range(5):
 #########################
 
 def compute_graph(model):
-    comm_success = 0
-    for agent in model.schedule.agents:
-        for word in agent.wordsuccess:
-            comm_success += sum(agent.wordsuccess[word])
-    return comm_success
+    avg_success = np.mean([a.comm_success for a in model.schedule.agents])
+    print("average success: ", avg_success)
+    return avg_success
 
 
 class LanguageAgent(Agent):
@@ -43,6 +41,8 @@ class LanguageAgent(Agent):
         self.word2meaning = {}
         self.wordsuccess = {}
         self.heading = self.random.choice([(-1, 0), (1, 0), (0, -1), (0, 1)])
+        self.comm_success = 0
+        self.number_of_dialogs = 0
 
     def create_link(self, word, meaning):
         """ Creates a coupling between word and meaning """
@@ -214,6 +214,10 @@ class LanguageAgent(Agent):
     def step(self):
         self.move()
         conversation = self.speak()
+        # TODO: Refactor this out of the step method
+        if conversation:
+            self.number_of_dialogs += 1
+            self.comm_success = self.comm_success + (1/self.number_of_dialogs) * (conversation.success - self.comm_success)
         self.change_wordMeaning(conversation)
 
 
@@ -235,7 +239,7 @@ class LanguageModel(Model):
             self.grid.place_agent(a, (x, y))
 
         self.datacollector = DataCollector(
-           model_reporters={"Communicative Success": compute_graph},
+           model_reporters={"Average Communicative Success": compute_graph},
            agent_reporters={"Meanings": "meanings"}
         )
 
