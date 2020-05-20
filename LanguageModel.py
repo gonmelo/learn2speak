@@ -4,9 +4,11 @@ from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
 from collections import namedtuple
+import numpy as np
 import random
 import string
 import math
+
 
 
 VOWELS = list("AEIOU")
@@ -24,12 +26,11 @@ for e in range(5):
 #########################
 
 def compute_graph(model):
-    agent_success = 0
+    comm_success = 0
     for agent in model.schedule.agents:
-        agent_success += agent.communication_success
-        # agent_success += random.random()
-    N = model.num_agents
-    return (agent_success / N)
+        for word in agent.wordsuccess:
+            comm_success += sum(agent.wordsuccess[word])
+    return comm_success
 
 
 class LanguageAgent(Agent):
@@ -41,10 +42,10 @@ class LanguageAgent(Agent):
         self.meaning2word = {}
         self.word2meaning = {}
         self.wordsuccess = {}
-        self.heading = [1,0]
-        self.communication_success = 0
+        self.heading = self.random.choice([(-1, 0), (1, 0), (0, -1), (0, 1)])
 
     def create_link(self, word, meaning):
+        """ Creates a coupling between word and meaning """
         print(str(self.unique_id) + " learned " + str(word) + " for " + str(meaning))
         self.meaning2word[meaning] = word
         self.word2meaning[word] = meaning
@@ -62,17 +63,18 @@ class LanguageAgent(Agent):
 
 
     def delete_link(self, word):
-        tmp = self.word2meaning[word]
-        print(str(self.unique_id) + " forgot " + str(word) + " for " + str(tmp))
+        """ Deletes a coupling between a word and a meaning """
+        meaning = self.word2meaning[word]
+        print(str(self.unique_id) + " forgot " + str(word) + " for " + str(meaning))
         del self.word2meaning[word]
-        del self.meaning2word[tmp]
+        del self.meaning2word[meaning]
         del self.wordsuccess[word]
 
         ################################ DEBUG ##############################
-        if len(GlobalStatus[tmp][word]) == 1:
-            del GlobalStatus[tmp][word]
+        if len(GlobalStatus[meaning][word]) == 1:
+            del GlobalStatus[meaning][word]
         else:
-            GlobalStatus[tmp][word].remove(self.unique_id)
+            GlobalStatus[meaning][word].remove(self.unique_id)
         ####################################################################
 
     def showGlobalStatus(self): # CHECK: DEBUG FUNCTION, SHOWS EVOLUTION OF VOCAB IN A SIMILAR WAY TO THE PAPER
@@ -85,6 +87,7 @@ class LanguageAgent(Agent):
         print("----------------")
 
     def move(self):
+        """ Implements the agents' movement """
         possible_steps = self.model.grid.get_neighborhood(
             self.pos,
             moore=False, # implements Von Neumann neighborhood
@@ -94,6 +97,7 @@ class LanguageAgent(Agent):
         self.model.grid.move_agent(self, new_position)
 
     def speak(self):
+        """ Implements the dialog between agents (Section 4.1.2 of the original paper) """
         # Speaks randomly to another agent on the same cell
         anticipated_meaning = None
         cellmates = self.model.grid.get_cell_list_contents([self.pos])
@@ -126,7 +130,7 @@ class LanguageAgent(Agent):
                 hearer.meanings.append(meaning)
                 return Conversation(word=None, meaning=None, success=0.0)
 
-            if self.random.randrange(0,2) == 1: # 50% chance of having an anticipated meaning
+            if self.random.random() <= 0.5: # 50% chance of having an anticipated meaning
                 print("    " + str(self.unique_id) + " points at " + str(meaning))
                 anticipated_meaning = meaning
 
@@ -164,29 +168,28 @@ class LanguageAgent(Agent):
                 return Conversation(word=None, meaning=meaning, success=0.0)
 
     def do_change(self, success_array):
-        avg = 0.0
-        for e in success_array:
-            avg += e
-        avg /= len(success_array)
-
+        """ Checks if a word-meaning coupling must be changed or not """
+        avg = np.mean(success_array)
+        # If average succes is zero drop the word
         if avg == 0:
             return True
+        # If it is 1 keep it
         if avg == 1:
             return False
-
+        # For cases in between we use the sigmoid function to decide
         probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(BETA*(avg - ALPHA)))))
-
         if self.random.random() < probability:
             return True
         else:
             return False
 
     def change_wordMeaning(self, conversation):
+        """ After a conversation, implements the changes to relevant word - meaning coupling if needed """
         if conversation == None: return
 
         # If no word was used in the last conversation
         if conversation.word == None and conversation.meaning != None:
-            if self.random.randrange(0, 100) <= 5:  # Probability of 5%
+            if self.random.random() <= 0.05:  # Probability of 5%
                 new_word = self.create_word()
                 while new_word in self.wordsuccess: # cannot have one word with multiple meanings
                     new_word = self.create_word()
@@ -204,14 +207,13 @@ class LanguageAgent(Agent):
                 else:
                     self.wordsuccess[conversation.word] = [] # reset success
 
-    # TODO: Complete function that creates new words
     def create_word(self):
+        """ Creates a new word (1 consonant + 1 vowel) """
         return self.random.choice(CONSONANTS) + self.random.choice(VOWELS)
 
     def step(self):
         self.move()
         conversation = self.speak()
-
         self.change_wordMeaning(conversation)
 
 
@@ -231,9 +233,9 @@ class LanguageModel(Model):
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
             self.grid.place_agent(a, (x, y))
-        # TODO: Implement data collector and decide measures
+
         self.datacollector = DataCollector(
-           model_reporters={"Graph": compute_graph},
+           model_reporters={"Communicative Success": compute_graph},
            agent_reporters={"Meanings": "meanings"}
         )
 
