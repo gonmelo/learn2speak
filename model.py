@@ -9,13 +9,9 @@ import random
 import string
 import math
 
-
-
 VOWELS = list("AEIOU")
 CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
-R = 5 # word meaning pair change rate
-ALPHA = 0.49 # sigmoid variable
-BETA = 80 # sigmoid variable
+
 
 Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
 
@@ -156,7 +152,7 @@ class LanguageAgent(Agent):
         if avg == 1:
             return False
         # For cases in between we use the sigmoid function to decide
-        probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(BETA*(avg - ALPHA)))))
+        probability = 1.0 / (1.0 + math.exp(4 * math.tan(math.radians(self.model.beta*(avg - self.model.alpha)))))
         if self.random.random() < probability:
             return True
         else:
@@ -180,7 +176,7 @@ class LanguageAgent(Agent):
             self.wordsuccess[conversation.word].append(conversation.success)
 
             # if the word was used R times, there is a chance it will be dropped
-            if len(self.wordsuccess[conversation.word]) >= R:
+            if len(self.wordsuccess[conversation.word]) >= self.model.change_rate:
                 if self.do_change(self.wordsuccess[conversation.word]):
                     self.delete_link(conversation.word) # forget word
                 else:
@@ -203,15 +199,18 @@ class LanguageAgent(Agent):
 
 class LanguageModel(Model):
     """ A model with variable number of agents who communicate. """
-    def __init__(self, N, width, height):
-        self.num_agents = N
+    def __init__(self, n, r, alpha, beta, width, height):
+        self.num_agents = n
+        self.change_rate = r
+        self.alpha = alpha
+        self.beta = beta
         self.grid = MultiGrid(width, height, False) # Last arg, if True makes grid toroidal
         self.schedule = RandomActivation(self)  # At each step, agents move in random order
         self.running = True
         self.vocabulary = {}
 
         # Initialize a vocabulary. For each meaning it will collect the words used by the agents
-        for e in range(N):
+        for e in range(self.num_agents):
             self.vocabulary[e] = {}
 
         # Create agents
