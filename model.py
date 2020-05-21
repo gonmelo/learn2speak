@@ -125,6 +125,7 @@ class LanguageAgent(Agent):
                     # If anticipated meaning different from hearer meaning
                     if (anticipated_meaning != None
                         and anticipated_meaning != hearer.word2meaning[word]):
+                        hearer.delete_link(word)
                         hearer.create_link(word, anticipated_meaning)
                         return None
                     # If anticipated meaning same as hearer meaning
