@@ -25,7 +25,7 @@ def agent_portrayal(agent):
     return portrayal
 
 grid = CanvasGrid(agent_portrayal, 5, 5, 500, 500)
-chart = ChartModule([{"Label": "Average Communicative Success",
+chart = ChartModule([{"Label": "Average Success (of the last window of dialogs)",
                       "Color": "Black"}],
                     data_collector_name='datacollector')
 
@@ -37,6 +37,13 @@ r = UserSettableParameter('slider', 'Vocabulary change rate', value=5, min_value
 alpha = UserSettableParameter('slider', 'Alpha', value=0.49, min_value=0.0, max_value=1.0, step=0.01)
 # Sigmoid variabl
 beta = UserSettableParameter('slider', 'Beta', value=80, min_value=0.0, max_value=90, step=1)
+# Word creation probability
+new_word_rate = UserSettableParameter('slider', 'Word creation probability', value=0.05, min_value=0, max_value=1, step=0.01)
+# Antecipated meaning probability
+antecipated_prob = UserSettableParameter('slider', 'Antecipated meaning probability', value=0.5, min_value=0, max_value=1, step=0.01)
+# Last success window size
+success_window = UserSettableParameter('slider', 'Size of the last window of dialogs', value=50, min_value=30, max_value=100, step=1)
+
 sigmoid_text = SigmoidText()
 
 server = ModularServer(LanguageModel,
@@ -46,6 +53,9 @@ server = ModularServer(LanguageModel,
                         "r": r,
                         "alpha": alpha,
                         "beta": beta,
+                        "new_word_rate": new_word_rate,
+                        "antecipated_prob": antecipated_prob,
+                        "success_window": success_window,
                         "width":5, "height":5})
 server.port = 8521 # The default
 # server.launch()

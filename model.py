@@ -16,10 +16,11 @@ CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
 Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
 
 def compute_graph(model):
-    avg_success = np.mean([a.comm_success for a in model.schedule.agents])
+    if len(model.success_array) == 0:
+        return 0
+    avg_success = np.mean(model.success_array)
     print("average success: ", avg_success)
     return avg_success
-
 
 class LanguageAgent(Agent):
     dialog_count = 0
@@ -50,7 +51,6 @@ class LanguageAgent(Agent):
         # Else append this agent to its users
         else:
             self.model.vocabulary[meaning][word].append(self.unique_id)
-
 
     def delete_link(self, word):
         """ Deletes a coupling between a word and a meaning """
@@ -104,7 +104,7 @@ class LanguageAgent(Agent):
                 hearer.meanings.append(meaning)
                 return Conversation(word=None, meaning=None, success=0.0)
 
-            if self.random.random() <= 0.5: # 50% chance of having an anticipated meaning
+            if self.random.random() <= self.model.antecipated_prob: # 50% chance of having an anticipated meaning default
                 print("    " + str(self.unique_id) + " points at " + str(meaning))
                 anticipated_meaning = meaning
 
@@ -145,7 +145,7 @@ class LanguageAgent(Agent):
     def do_change(self, success_array):
         """ Checks if a word-meaning coupling must be changed or not """
         avg = np.mean(success_array)
-        # If average succes is zero drop the word
+        # If average success is zero drop the word
         if avg == 0:
             return True
         # If it is 1 keep it
@@ -164,7 +164,7 @@ class LanguageAgent(Agent):
 
         # If no word was used in the last conversation
         if conversation.word == None and conversation.meaning != None:
-            if self.random.random() <= 0.05:  # Probability of 5%
+            if self.random.random() <= self.model.new_word_rate:  # Probability of 5% default
                 new_word = self.create_word()
                 while new_word in self.wordsuccess: # cannot have one word with multiple meanings
                     new_word = self.create_word()
@@ -194,20 +194,26 @@ class LanguageAgent(Agent):
             self.number_of_dialogs += 1
             print(self.number_of_dialogs)
             self.comm_success = self.comm_success + (1/self.number_of_dialogs) * (conversation.success - self.comm_success)
+            self.model.addSuccess(conversation.success)
+
         self.change_wordMeaning(conversation)
 
 
 class LanguageModel(Model):
     """ A model with variable number of agents who communicate. """
-    def __init__(self, n, r, alpha, beta, width, height):
+    def __init__(self, n, r, alpha, beta, new_word_rate, antecipated_prob, success_window, width, height):
         self.num_agents = n
         self.change_rate = r
         self.alpha = alpha
         self.beta = beta
+        self.new_word_rate = new_word_rate
+        self.success_window = success_window
+        self.antecipated_prob = antecipated_prob
         self.grid = MultiGrid(width, height, False) # Last arg, if True makes grid toroidal
         self.schedule = RandomActivation(self)  # At each step, agents move in random order
         self.running = True
         self.vocabulary = {}
+        self.success_array = []
 
         # Initialize a vocabulary. For each meaning it will collect the words used by the agents
         for e in range(self.num_agents):
@@ -223,7 +229,7 @@ class LanguageModel(Model):
             self.grid.place_agent(a, (x, y))
 
         self.datacollector = DataCollector(
-           model_reporters={"Average Communicative Success": compute_graph},
+           model_reporters={"Average Success (of the last window of dialogs)": compute_graph},
            agent_reporters={"Meanings": "meanings"}
         )
 
@@ -245,5 +251,12 @@ class LanguageModel(Model):
                 text += str(word) + ":" + str(self.vocabulary[e][word]) + " "
             print(text)
         print("----------------")
+
+    def addSuccess(self, success):
+        if len(self.success_array) + 1 >= self.success_window:
+            del self.success_array[0]
+
+        self.success_array.append(success)
+
 
 # TODO: Add batch running to find overall patterns
