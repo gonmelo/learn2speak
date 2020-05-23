@@ -30,8 +30,7 @@ class HistogramModule(VisualizationElement):
 
     def render(self, model):
         agents_success = [agent.comm_success for agent in model.schedule.agents]
-        while len(agents_success) < 10:
-            agents_success.append(0)
+
         return agents_success
 
 def agent_portrayal(agent):
@@ -66,7 +65,11 @@ success_window = UserSettableParameter('slider', 'Size of the last window of dia
 
 sigmoid_text = SigmoidText()
 
-histogram = HistogramModule(list(range(10)), 200, 500)
+alist = []
+for i in range(10):
+    alist.append("a-" + str(i+1))
+    
+histogram = HistogramModule(alist, 200, 500)
 
 server = ModularServer(LanguageModel,
                        [sigmoid_text, grid, chart, histogram],
