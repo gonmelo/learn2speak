@@ -1,7 +1,7 @@
 from model import *
 from mesa.visualization.modules import CanvasGrid, ChartModule, TextElement
 from mesa.visualization.UserParam import UserSettableParameter
-from mesa.visualization.ModularVisualization import ModularServer
+from mesa.visualization.ModularVisualization import ModularServer, VisualizationElement
 
 class SigmoidText(TextElement):
     '''
@@ -13,6 +13,26 @@ class SigmoidText(TextElement):
     def render(self, model):
         return "Sigmoid Function: <math>σ(x) = 1&divide;(1 + e <sup>4 tanβ(x - α)</sup>)</math>"
 
+
+class HistogramModule(VisualizationElement):
+    package_includes = ["Chart.min.js"]
+    local_includes = ["HistogramModule.js"]
+
+    def __init__(self, bins, canvas_height, canvas_width):
+        self.canvas_height = canvas_height
+        self.canvas_width = canvas_width
+        self.bins = bins
+        new_element = "new HistogramModule({}, {}, {})"
+        new_element = new_element.format(bins,
+                                         canvas_width,
+                                         canvas_height)
+        self.js_code = "elements.push(" + new_element + ");"
+
+    def render(self, model):
+        agents_success = [agent.comm_success for agent in model.schedule.agents]
+        while len(agents_success) < 10:
+            agents_success.append(0)
+        return agents_success
 
 def agent_portrayal(agent):
     portrayal = {"Shape": "arrowHead",
@@ -46,8 +66,10 @@ success_window = UserSettableParameter('slider', 'Size of the last window of dia
 
 sigmoid_text = SigmoidText()
 
+histogram = HistogramModule(list(range(10)), 200, 500)
+
 server = ModularServer(LanguageModel,
-                       [sigmoid_text, grid, chart],
+                       [sigmoid_text, grid, chart, histogram],
                        "Language and Self-Organization",
                        {"n": n,
                         "r": r,
