@@ -8,10 +8,12 @@ import numpy as np
 import random
 import string
 import math
+import itertools
 
 VOWELS = list("AEIOU")
 CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
-
+STD_MEANINGS = [0,1,2,3,4,5,6,7,8,9]
+STD_WORDS = ['BA', 'CE', 'DI', 'FO', 'GU', 'HA', 'JE', 'KI', 'LO', 'MU']
 
 Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
 
@@ -28,14 +30,23 @@ class LanguageAgent(Agent):
     dialog_count = 0
     """ An agent that learns a communinty's vocabulary """
 
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, literate=False):
         super().__init__(unique_id, model)
         self.meanings = []
         self.meaning2word = {}
         self.word2meaning = {}
         self.wordsuccess = {}
-        self.heading = self.random.choice([(-1, 0), (1, 0), (0, -1), (0, 1)])
         self.comm_success = 0
+        # If the agent has initial language
+        if literate:
+            self.meanings = STD_MEANINGS
+            for (meaning, word) in zip(STD_MEANINGS, STD_WORDS):
+                self.meaning2word[meaning] = word
+                self.word2meaning[word] = meaning
+                self.wordsuccess[word] = [1.0] * 10
+            self.comm_success = 1.0
+
+        self.heading = self.random.choice([(-1, 0), (1, 0), (0, -1), (0, 1)])
         self.number_of_dialogs = 0
 
     def create_link(self, word, meaning):
@@ -213,8 +224,9 @@ class LanguageAgent(Agent):
 class LanguageModel(Model):
     """ A model with variable number of agents who communicate. """
 
-    def __init__(self, n, r, alpha, beta, new_word_rate, antecipated_prob, success_window, width, height):
+    def __init__(self, n, literate,r, alpha, beta, new_word_rate, antecipated_prob, success_window, width, height):
         self.num_agents = n
+        self.literate = literate
         self.change_rate = r
         self.alpha = alpha
         self.beta = beta
@@ -230,17 +242,25 @@ class LanguageModel(Model):
         self.success_array = []
 
         # Initialize a vocabulary. For each meaning it will collect the words used by the agents
-        for e in range(self.num_agents):
-            self.vocabulary[e] = {}
+        if literate > 0:
+            for e in range(self.num_agents):
+                self.vocabulary[e] = {STD_WORDS[e]: list(range(literate))}
+        else:
+            for e in range(self.num_agents):
+                self.vocabulary[e] = {}
 
         # Create agents
         for i in range(self.num_agents):
-            a = LanguageAgent(i, self)
+            if i < self.literate:
+                a = LanguageAgent(i, self, True)
+            else:
+                a = LanguageAgent(i, self, False)
             self.schedule.add(a)
             # Add the agent to a random grid cell
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
             self.grid.place_agent(a, (x, y))
+
 
         self.datacollector = DataCollector(
             model_reporters={

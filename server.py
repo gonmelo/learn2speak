@@ -54,8 +54,11 @@ chart = ChartModule([{"Label": "Average Success (of the last window of dialogs)"
                     data_collector_name='datacollector')
 
 # Number of Agents in the simulation
-n = UserSettableParameter('slider', 'Number of agents',
-                          value=5, min_value=2, max_value=10, step=1)
+n = UserSettableParameter('slider', 'Total Number of agents',
+                          value=5, min_value=0, max_value=10, step=1)
+
+l = UserSettableParameter('slider', 'Number of initial literate agents',
+                          value=0, min_value=0, max_value=10, step=1)
 # Word-meaning coupling change rate
 r = UserSettableParameter(
     'slider', 'Vocabulary change rate', value=5, min_value=1, max_value=10, step=1)
@@ -87,6 +90,7 @@ server = ModularServer(LanguageModel,
                        [sigmoid_text, grid, chart, histogram],
                        "Language and Self-Organization",
                        {"n": n,
+                        "literate": l,
                         "r": r,
                         "alpha": alpha,
                         "beta": beta,
