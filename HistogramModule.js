@@ -1,4 +1,4 @@
-var HistogramModule = function(bins, canvas_width, canvas_height) {
+var HistogramModule = function (bins, canvas_width, canvas_height) {
     // Create the tag:
     var canvas_tag = "<canvas width='" + canvas_width + "' height='" + canvas_height + "' ";
     canvas_tag += "style='border:1px dotted'></canvas>";
@@ -32,15 +32,23 @@ var HistogramModule = function(bins, canvas_width, canvas_height) {
     };
 
     // Create the chart object
-    var chart = new Chart(context, {type: 'bar', data: data, options: options});
+    var chart = new Chart(context, {
+        type: 'bar',
+        data: data,
+        options: options
+    });
 
-    this.render = function(data) {
+    this.render = function (data) {
         datasets[0].data = data;
         chart.update();
     };
 
-    this.reset = function() {
+    this.reset = function () {
         chart.destroy();
-        chart = new Chart(context, {type: 'bar', data: data, options: options});
+        chart = new Chart(context, {
+            type: 'bar',
+            data: data,
+            options: options
+        });
     };
 };
