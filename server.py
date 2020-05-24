@@ -4,16 +4,15 @@ from mesa.visualization.UserParam import UserSettableParameter
 from mesa.visualization.ModularVisualization import ModularServer, VisualizationElement
 
 
-class SigmoidText(TextElement):
+class DialogText(TextElement):
     '''
-    Display the Sigmoid Formula.
+    Display the Number of Dialogs.
     '''
-
-    def __init__(self):
-        pass
+    def __init__(self, var_name):
+        self.var_name = var_name
 
     def render(self, model):
-        return "Sigmoid Function: <math>σ(x) = 1&divide;(1 + e <sup>4 tanβ(x - α)</sup>)</math>"
+         return  "Occurred Dialogs: " + str(getattr(model, self.var_name))
 
 
 class HistogramModule(VisualizationElement):
@@ -78,7 +77,7 @@ antecipated_prob = UserSettableParameter(
 success_window = UserSettableParameter(
     'slider', 'Communicative Success Window Size', value=50, min_value=5, max_value=100, step=1)
 
-sigmoid_text = SigmoidText()
+dialog_text = DialogText(var_name="total_dialogs")
 
 alist = []
 for i in range(10):
@@ -87,7 +86,7 @@ for i in range(10):
 histogram = HistogramModule(alist, 200, 500)
 
 server = ModularServer(LanguageModel,
-                       [grid, chart, histogram],
+                       [dialog_text, grid, chart, histogram],
                        "Language and Self-Organization",
                        {"n": n,
                         "literate": l,

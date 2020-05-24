@@ -243,6 +243,7 @@ class LanguageModel(Model):
         self.running = True
         self.vocabulary = {}
         self.success_array = []
+        self.total_dialogs = 0
 
         # Initialize a vocabulary. For each meaning it will collect the words used by the agents
         if literate > 0:
@@ -273,11 +274,11 @@ class LanguageModel(Model):
     def step(self):
         # TODO: Refactor the conditional out of this step method.
         self.datacollector.collect(self)
-        total_dialogs = sum(
+        self.total_dialogs = sum(
             [a.number_of_dialogs for a in self.schedule.agents])
         # show global vocabulary every 50 iterations
         if self.schedule.time % 50 == 0:
-            print("Dialog ", total_dialogs)
+            print("Dialog ", self.total_dialogs)
             self.showVocabulary()
         self.schedule.step()
 
