@@ -12,7 +12,7 @@ import itertools
 
 VOWELS = list("AEIOU")
 CONSONANTS = list(set(string.ascii_uppercase) - set(VOWELS))
-STD_MEANINGS = [0,1,2,3,4,5,6,7,8,9]
+STD_MEANINGS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 STD_WORDS = ['BA', 'CE', 'DI', 'FO', 'GU', 'HA', 'JE', 'KI', 'LO', 'MU']
 
 Conversation = namedtuple("Conversation", ["word", "meaning", "success"])
@@ -222,9 +222,12 @@ class LanguageAgent(Agent):
 
 
 class LanguageModel(Model):
-    """ A model with variable number of agents who communicate. """
+    """ 
+    A model that simulates Language Emergence through Self-Organization. For more 
+    information check the original paper: https://digital.csic.es/bitstream/10261/127969/1/Spatial%20Vocabulary.pdf
+    """
 
-    def __init__(self, n, literate,r, alpha, beta, new_word_rate, antecipated_prob, success_window, width, height):
+    def __init__(self, n, literate, r, alpha, beta, new_word_rate, antecipated_prob, success_window, width, height):
         self.num_agents = n
         self.literate = literate
         self.change_rate = r
@@ -260,7 +263,6 @@ class LanguageModel(Model):
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
             self.grid.place_agent(a, (x, y))
-
 
         self.datacollector = DataCollector(
             model_reporters={

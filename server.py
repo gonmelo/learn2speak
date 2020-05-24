@@ -63,20 +63,20 @@ l = UserSettableParameter('slider', 'Number of initial literate agents',
 r = UserSettableParameter(
     'slider', 'Vocabulary change rate', value=5, min_value=1, max_value=10, step=1)
 # Sigmoid variable
-alpha = UserSettableParameter(
-    'slider', 'Alpha', value=0.49, min_value=0.0, max_value=1.0, step=0.01)
+# alpha = UserSettableParameter(
+    # 'slider', 'Alpha', value=0.49, min_value=0.0, max_value=1.0, step=0.01)
 # Sigmoid variabl
-beta = UserSettableParameter(
-    'slider', 'Beta', value=80, min_value=0.0, max_value=90, step=1)
+# beta = UserSettableParameter(
+    # 'slider', 'Beta', value=80, min_value=0.0, max_value=90, step=1)
 # Word creation probability
 new_word_rate = UserSettableParameter(
-    'slider', 'Word creation probability', value=0.05, min_value=0, max_value=1, step=0.01)
+    'slider', 'New word generation probability', value=0.05, min_value=0, max_value=1, step=0.01)
 # Antecipated meaning probability
 antecipated_prob = UserSettableParameter(
-    'slider', 'Antecipated meaning probability', value=0.5, min_value=0, max_value=1, step=0.01)
+    'slider', 'Extralinguistic Initiation probability', value=0.5, min_value=0, max_value=1, step=0.01)
 # Last success window size
 success_window = UserSettableParameter(
-    'slider', 'Size of the last window of dialogs', value=50, min_value=30, max_value=100, step=1)
+    'slider', 'Communicative Success Window Size', value=50, min_value=5, max_value=100, step=1)
 
 sigmoid_text = SigmoidText()
 
@@ -87,13 +87,13 @@ for i in range(10):
 histogram = HistogramModule(alist, 200, 500)
 
 server = ModularServer(LanguageModel,
-                       [sigmoid_text, grid, chart, histogram],
+                       [grid, chart, histogram],
                        "Language and Self-Organization",
                        {"n": n,
                         "literate": l,
                         "r": r,
-                        "alpha": alpha,
-                        "beta": beta,
+                        "alpha": 0.49,
+                        "beta": 80,
                         "new_word_rate": new_word_rate,
                         "antecipated_prob": antecipated_prob,
                         "success_window": success_window,
